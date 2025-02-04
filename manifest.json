@@ -1,0 +1,14 @@
+{
+    "manifest_version": 3,
+    "name": "DeepSeek Conversation Exporter",
+    "version": "1.0",
+    "description": "Extract DeepSeek conversation and copy it as JSON.",
+    "permissions": ["activeTab", "scripting", "clipboardWrite"],
+    "content_scripts": [
+      {
+        "matches": ["https://chat.deepseek.com/*"],
+        "js": ["contentScript.js"]
+      }
+    ]
+  }
+  
