@@ -1,51 +1,77 @@
-function collectRightChatConversation() {
-  const mainChatContainer = document.querySelector('.f2eea526');
-  if (!mainChatContainer) {
-    console.error("Main chat container with class 'f2eea526' not found.");
-    return [];
-  }
-
-  // Select both types of message containers
-  const messageElements = mainChatContainer.querySelectorAll('.dad65929, .f9bf7997');
-  console.log(messageElements);
+function collectDynamicConversation() {
   const conversation = [];
+  let lastSender = null;
+  
+  const chatContainer = document.querySelector('.f2eea526');
+  if (!chatContainer) return [];
+  
+  const messageElements = Array.from(chatContainer.querySelectorAll('div'));
+  
+  // Filter and order messages properly
+  const validMessages = messageElements.filter(element => {
+    const isAssistant = element.querySelector('.ds-markdown');
+    const isUser = element.querySelector('.ds-flex');
+    return isAssistant || isUser;
+  });
 
-  messageElements.forEach((msgElem) => {
-    // Determine sender based on the container class.
-    // If the element has the 'dad65929' class, it's a user message; otherwise, assistant.
-    const sender = msgElem.classList.contains('dad65929') ? "user" : "assistant";
+  validMessages.forEach(element => {
+    // Check assistant first to maintain DOM order priority
+    const assistantContent = element.querySelector('.ds-markdown');
+    if (assistantContent) {
+      const text = assistantContent.textContent.trim();
+      if (text && lastSender !== 'assistant') {
+        conversation.push({ sender: 'assistant', text });
+        lastSender = 'assistant';
+      }
+      return;
+    }
 
-    const text = msgElem.textContent.trim();
-    if (text) {
-      conversation.push({ sender, text });
+    // Then check user messages
+    const userActionBar = element.querySelector('.ds-flex');
+    if (userActionBar) {
+      const clone = element.cloneNode(true);
+      clone.querySelectorAll('.ds-icon-button, .ds-flex').forEach(el => el.remove());
+      const text = clone.textContent.trim();
+      
+      if (text && lastSender !== 'user') {
+        conversation.push({ sender: 'user', text });
+        lastSender = 'user';
+      }
     }
   });
+
+  // Final validation to ensure user starts first
+  if (conversation[0]?.sender === 'assistant') {
+    conversation.shift();
+  }
 
   return conversation;
 }
 
+// Create and style the floating button
+const button = document.createElement('button');
+Object.assign(button.style, {
+  position: 'fixed',
+  bottom: '20px',
+  right: '20px',
+  padding: '10px 15px',
+  zIndex: '9999',
+  backgroundColor: '#007bff',
+  color: '#fff',
+  border: 'none',
+  borderRadius: '4px',
+  cursor: 'pointer'
+});
+button.textContent = 'Copy Chat as JSON';
 
+// Add click handler
+button.addEventListener('click', () => {
+  const conversation = collectDynamicConversation();
+  const conversationJSON = JSON.stringify(conversation, null, 2);
   
-  // Create a floating button that copies the conversation as JSON
-  const button = document.createElement('button');
-  button.textContent = 'Copy Chat as JSON';
-  button.style.position = 'fixed';
-  button.style.bottom = '20px';
-  button.style.right = '20px';
-  button.style.padding = '10px 15px';
-  button.style.zIndex = '9999';
-  button.style.backgroundColor = '#007bff';
-  button.style.color = '#fff';
-  button.style.border = 'none';
-  button.style.borderRadius = '4px';
-  button.style.cursor = 'pointer';
-  document.body.appendChild(button);
-  
-  button.addEventListener('click', () => {
-    const conversation = collectRightChatConversation();
-    const conversationJSON = JSON.stringify(conversation, null, 2);
-    navigator.clipboard.writeText(conversationJSON)
-      .then(() => alert('Chat conversation copied as JSON!'))
-      .catch(err => alert('Failed to copy conversation: ' + err));
-  });
-  
+  navigator.clipboard.writeText(conversationJSON)
+    .then(() => alert('Chat conversation copied as JSON!'))
+    .catch(err => alert('Failed to copy: ' + err));
+});
+
+document.body.appendChild(button);
